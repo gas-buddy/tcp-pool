@@ -1,0 +1,23 @@
+box: node
+
+build:
+  steps:
+    - script:
+        name: setup node env
+        code: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+
+    - npm-install
+
+    - script:
+        name: lint
+        code: npm run lint
+
+    - npm-test
+
+deploy:
+  steps:
+    - script:
+      name: npm publish
+      code: |
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        npm publish . --tag latest
