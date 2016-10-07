@@ -33,7 +33,7 @@ export default class TcpPool {
   constructor(interfaceConstructor, options) {
     this.Parser = interfaceConstructor;
     this.options = Object.assign({}, options);
-    this.name = this.options.name || `${interfaceConstructor} Connection Pool`;
+    this.name = this.options.name || `${interfaceConstructor.name} Connection Pool`;
     this.connectionCount = 0;
     this.pool = new Pool({
       name: this.name,
