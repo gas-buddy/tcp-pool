@@ -1,4 +1,5 @@
 import tls from 'tls';
+import net from 'net';
 import winston from 'winston';
 import { Pool } from 'generic-pool';
 import { EventEmitter } from 'events';
@@ -89,12 +90,9 @@ export default class TcpPool {
     const myId = this.connectionCount;
     winston.info(`Pool ${this.name} socket #${myId} connecting`);
     let attemptCompleted = false;
-    const tlsOptions = Object.assign({
-      secureProtocol: 'TLSv1_2_client_method',
-      host: this.options.host,
-      port: this.options.port,
-    }, this.options.tlsOptions);
-    const socket = tls.connect(tlsOptions, () => {
+    let socket;
+
+    const connectionHandler = () => {
       if (!attemptCompleted) {
         winston.info(`Pool ${this.name} socket #${myId} connected`);
         attemptCompleted = true;
@@ -103,7 +101,22 @@ export default class TcpPool {
         this.reset(connectionParser);
         callback(null, connectionParser);
       }
-    });
+    };
+
+    if (this.options.insecure === true) {
+      socket = net.connect({
+        host: this.options.host,
+        port: this.options.port,
+      }, connectionHandler);
+    } else {
+      const tlsOptions = Object.assign({
+        secureProtocol: 'TLSv1_2_client_method',
+        host: this.options.host,
+        port: this.options.port,
+      }, this.options.tlsOptions);
+      socket = tls.connect(tlsOptions, connectionHandler);
+    }
+
     socket.once('error', (error) => {
       winston.error(`Error on Pool ${this.name} socket #${myId}`, {
         message: error.message,
