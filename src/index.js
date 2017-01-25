@@ -1,7 +1,7 @@
 import tls from 'tls';
 import net from 'net';
 import winston from 'winston';
-import { Pool } from 'generic-pool';
+import pool from 'generic-pool';
 import { EventEmitter } from 'events';
 
 class ConnectionInterface extends EventEmitter {
@@ -36,35 +36,25 @@ export default class TcpPool {
     this.options = Object.assign({}, options);
     this.name = this.options.name || `${interfaceConstructor.name} Connection Pool`;
     this.connectionCount = 0;
-    this.pool = new Pool({
-      name: this.name,
-      create: callback => this.connect(callback),
+
+    const factory = {
+      create: () => this.connect(),
       destroy: client => this.disconnect(client),
       validate: client => this.validate(client),
+    };
+    const config = {
       max: this.options.max || 10,
       min: this.options.min || 1,
-      idleTimeoutMillis: 30000,
-      log: (msg, level) => {
-        try {
-          winston[level](`Pool ${this.name} ${msg}`);
-        } catch (logError) {
-          winston.error('Logging failed', { message: logError.message, stack: logError.stack });
-        }
-      },
-    });
+      acquireTimeoutMillis: this.options.acquireTimeoutMillis || 15000,
+      idleTimeoutMillis: this.options.idleTimeoutMillis || 30000,
+    };
+    this.pool = pool.createPool(factory, config);
   }
 
   async acquire(context) {
-    return new Promise((accept, reject) => {
-      this.pool.acquire((err, conn) => {
-        if (err) {
-          return reject(err);
-        }
-        // eslint-disable-next-line no-param-reassign
-        conn.context = context;
-        return accept(conn);
-      });
-    });
+    const conn = await this.pool.acquire();
+    conn.context = context;
+    return conn;
   }
 
   release(conn) {
@@ -76,56 +66,71 @@ export default class TcpPool {
 
   async destroyAllNow() {
     winston.debug(`Pool ${this.name} shutting down`);
-    return new Promise((accept) => {
-      this.pool.drain(() => {
-        winston.debug(`Pool ${this.name} drained`);
-        this.pool.destroyAllNow();
-        accept();
-      });
-    });
+    await this.pool.drain();
+    winston.debug(`Pool ${this.name} drained`);
+    await this.pool.clear();
+    winston.debug(`Pool ${this.name} cleared`);
   }
 
-  connect(callback) {
+  async connect() {
     this.connectionCount += 1;
     const myId = this.connectionCount;
     winston.info(`Pool ${this.name} socket #${myId} connecting`);
     let attemptCompleted = false;
     let socket;
 
-    const connectionHandler = () => {
-      if (!attemptCompleted) {
-        winston.info(`Pool ${this.name} socket #${myId} connected`);
-        attemptCompleted = true;
-        socket.removeAllListeners();
-        const connectionParser = new (this.Parser)(socket, myId);
-        this.reset(connectionParser);
-        callback(null, connectionParser);
-      }
-    };
+    return new Promise((accept, reject) => {
+      let resolved = false;
+      const connectionHandler = () => {
+        if (!attemptCompleted) {
+          winston.info(`Pool ${this.name} socket #${myId} connected`);
+          attemptCompleted = true;
+          socket.removeAllListeners();
+          const connectionParser = new (this.Parser)(socket, myId);
+          this.reset(connectionParser);
+          resolved = true;
+          accept(connectionParser);
+        }
+      };
 
-    if (this.options.insecure === true) {
-      socket = net.connect({
-        host: this.options.host,
-        port: this.options.port,
-      }, connectionHandler);
-    } else {
-      const tlsOptions = Object.assign({
-        secureProtocol: 'TLSv1_2_client_method',
-        host: this.options.host,
-        port: this.options.port,
-      }, this.options.tlsOptions);
-      socket = tls.connect(tlsOptions, connectionHandler);
-    }
+      try {
+        if (this.options.insecure === true) {
+          socket = net.connect({
+            host: this.options.host,
+            port: this.options.port,
+          }, connectionHandler);
+        } else {
+          const tlsOptions = Object.assign({
+            secureProtocol: 'TLSv1_2_client_method',
+            host: this.options.host,
+            port: this.options.port,
+          }, this.options.tlsOptions);
+          socket = tls.connect(tlsOptions, connectionHandler);
+        }
 
-    socket.once('error', (error) => {
-      winston.error(`Error on Pool ${this.name} socket #${myId}`, {
-        message: error.message,
-        stack: error.stack,
-      });
-      if (!attemptCompleted) {
-        attemptCompleted = true;
-        socket.end();
-        callback(error);
+        socket.once('error', (error) => {
+          winston.error(`Error on Pool ${this.name} socket #${myId}`, {
+            message: error.message,
+            stack: error.stack,
+          });
+          if (!attemptCompleted) {
+            attemptCompleted = true;
+            socket.end();
+            // Reject after a second to give some backoff time
+            if (!resolved) {
+              setTimeout(() => reject(error), 1000);
+              resolved = true;
+            }
+          }
+        });
+      } catch (error) {
+        winston.error(`Error on Pool ${this.name}`, {
+          message: error.message,
+          stack: error.stack,
+        });
+        if (!resolved) {
+          reject(error);
+        }
       }
     });
   }
@@ -149,16 +154,25 @@ export default class TcpPool {
   }
 
   validate(conn) {
-    if (conn.readyState === 'open') {
-      return true;
-    }
-    winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
-    return false;
+    return new Promise((accept) => {
+      if (conn.readyState === 'open') {
+        accept(true);
+      }
+      winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
+      return accept(false);
+    });
   }
 
   disconnect(conn) {
-    winston.debug(`Pool ${this.name} socket #${conn.id} closing`);
-    conn.destroy();
+    return new Promise((accept, reject) => {
+      try {
+        winston.debug(`Pool ${this.name} socket #${conn.id} closing`);
+        conn.destroy();
+        accept();
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }
 

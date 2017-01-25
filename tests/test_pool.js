@@ -59,6 +59,7 @@ tap.test('Should fail to connect with invalid cert', async (t) => {
     host: 'localhost',
     port: tlsServer.address().port,
     min: 0,
+    acquireTimeoutMillis: 500,
   });
   t.ok(pool, 'Constructor should work');
   try {
