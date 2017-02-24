@@ -43,7 +43,7 @@
     "estraverse-fb": "^1.3.1",
     "pre-commit": "^1.1.2",
     "ssl-root-cas": "^1.1.10",
-    "tap": "^9"
+    "tap": "^10.2.1"
   },
   "author": "GasBuddy",
   "license": "MIT"
