@@ -1,6 +1,6 @@
 {
   "name": "@gasbuddy/tcp-pool",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A generic pool of TCP connections with a parsing class for handling incoming and outgoing messages",
   "main": "build/index.js",
   "scripts": {
@@ -11,9 +11,6 @@
     "prepublish": "npm run build",
     "build": "babel src --out-dir build"
   },
-  "pre-commit": [
-    "lint"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gas-buddy/tcp-pool.git"
@@ -28,22 +25,21 @@
     "pool"
   ],
   "dependencies": {
-    "eslint": "^3.14.0",
+    "babel-runtime": "^6.23.0",
     "generic-pool": "^3",
     "winston": "^2.1.1"
   },
   "devDependencies": {
     "babel-cli": "^6.9.0",
     "babel-core": "^6.3.13",
-    "babel-preset-gasbuddy": "^1",
+    "babel-preset-gasbuddy": "^2",
     "babel-register": "^6.3.13",
     "bluebird": "^3.3.4",
     "cross-env": "^3.1.3",
+    "eslint": "^3.14.0",
     "eslint-config-gasbuddy": "^1",
-    "estraverse-fb": "^1.3.1",
-    "pre-commit": "^1.1.2",
     "ssl-root-cas": "^1.1.10",
-    "tap": "^9"
+    "tap": "^10"
   },
   "author": "GasBuddy",
   "license": "MIT"
