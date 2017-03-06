@@ -1,6 +1,6 @@
 {
   "name": "@gasbuddy/tcp-pool",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A generic pool of TCP connections with a parsing class for handling incoming and outgoing messages",
   "main": "build/index.js",
   "scripts": {
