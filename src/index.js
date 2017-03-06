@@ -158,7 +158,7 @@ export default class TcpPool {
 
   loggerForContext(context) {
     if (this.options.loggerFromContext) {
-      return this.options.loggerFromContext(context);
+      return this.options.loggerFromContext(context) || winston;
     }
     return winston;
   }
