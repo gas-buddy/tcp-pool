@@ -52,16 +52,37 @@ export default class TcpPool {
   }
 
   async acquire(context) {
-    const conn = await this.pool.acquire();
-    conn.context = context;
-    return conn;
+    const logger = this.loggerForContext(context);
+    logger.info(`Acquiring connection from ${this.name} pool`);
+    try {
+      const conn = await this.pool.acquire();
+      logger.info(`Returning connection #${conn.id} from ${this.name} pool`);
+      conn.context = context;
+      return conn;
+    } catch (error) {
+      logger.error(`Failed to acquire connection from ${this.name} pool`, {
+        error: error.message || error,
+      });
+      throw error;
+    }
   }
 
   release(conn) {
+    const logger = this.loggerForContext(conn.context);
+    logger.info(`Releasing connection #${conn.id} into ${this.name} pool`);
     this.reset(conn);
     // eslint-disable-next-line no-param-reassign
     delete conn.context;
     this.pool.release(conn);
+  }
+
+  destroy(conn) {
+    const logger = this.loggerForContext(conn.context);
+    logger.info(`Destroying connection #${conn.id} of ${this.name} pool`);
+    this.reset(conn);
+    // eslint-disable-next-line no-param-reassign
+    delete conn.context;
+    this.pool.destroy(conn);
   }
 
   async destroyAllNow() {
@@ -135,6 +156,13 @@ export default class TcpPool {
     });
   }
 
+  loggerForContext(context) {
+    if (this.options.loggerFromContext) {
+      return this.options.loggerForContext(context);
+    }
+    return winston;
+  }
+
   reset(conn) {
     conn.removeAllListeners();
     conn.on('error', error => this.onError(conn, error));
@@ -142,15 +170,18 @@ export default class TcpPool {
   }
 
   onError(conn, error) {
-    winston.error(`Error on Pool ${this.name} socket #${conn.id}`, {
+    const logger = this.loggerForContext(conn.context);
+    logger.error(`Error on Pool ${this.name} socket #${conn.id}`, {
       message: error.message,
       stack: error.stack,
     });
     conn.end();
+    this.pool.destroy(conn);
   }
 
   onClosed(conn) {
-    winston.debug(`Pool ${this.name} socket #${conn.id} closed`);
+    const logger = this.loggerForContext(conn.context);
+    logger.info(`Pool ${this.name} socket #${conn.id} closed`);
   }
 
   validate(conn) {
