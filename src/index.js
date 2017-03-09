@@ -187,11 +187,16 @@ export default class TcpPool {
 
   validate(conn) {
     return new Promise((accept) => {
-      if (conn.readyState === 'open') {
-        accept(true);
+      if (typeof conn.validate === 'function') {
+        Promise.resolve(conn.validate())
+          .then(isValid => accept(isValid));
+      } else {
+        if (conn.readyState === 'open') {
+          accept(true);
+        }
+        winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
+        accept(false);
       }
-      winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
-      return accept(false);
     });
   }
 
