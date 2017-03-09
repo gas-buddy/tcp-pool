@@ -10,7 +10,7 @@ class ConnectionInterface extends EventEmitter {
     this.id = id;
     this.socket = socket;
     this.socket.on('error', e => this.emit('error', e));
-    this.socket.on('close', e => this.emit('closed', e));
+    this.socket.on('close', e => this.emit('close', e));
   }
 
   send(buffer) {
