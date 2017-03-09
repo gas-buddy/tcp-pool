@@ -47,6 +47,7 @@ export default class TcpPool {
       min: this.options.min || 1,
       acquireTimeoutMillis: this.options.acquireTimeoutMillis || 15000,
       idleTimeoutMillis: this.options.idleTimeoutMillis || 30000,
+      testOnBorrow: true,
     };
     this.pool = pool.createPool(factory, config);
   }
@@ -166,7 +167,7 @@ export default class TcpPool {
   reset(conn) {
     conn.removeAllListeners();
     conn.on('error', error => this.onError(conn, error));
-    conn.on('closed', error => this.onClosed(conn, error));
+    conn.on('close', error => this.onClose(conn, error));
   }
 
   onError(conn, error) {
@@ -179,7 +180,7 @@ export default class TcpPool {
     this.pool.destroy(conn);
   }
 
-  onClosed(conn) {
+  onClose(conn) {
     const logger = this.loggerForContext(conn.context);
     logger.info(`Pool ${this.name} socket #${conn.id} closed`);
   }
