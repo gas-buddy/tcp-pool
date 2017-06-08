@@ -103,12 +103,20 @@ export default class TcpPool {
 
     return new Promise((accept, reject) => {
       let resolved = false;
-      const connectionHandler = () => {
+      const connectionHandler = async () => {
         if (!attemptCompleted) {
           winston.info(`Pool ${this.name} socket #${myId} connected`);
           attemptCompleted = true;
           socket.removeAllListeners();
           const connectionParser = new (this.Parser)(socket, myId);
+          if (typeof connectionParser.initializeConnection === 'function') {
+            try {
+              await connectionParser.initializeConnection();
+            } catch (error) {
+              reject(error);
+              return;
+            }
+          }
           this.reset(connectionParser);
           resolved = true;
           accept(connectionParser);

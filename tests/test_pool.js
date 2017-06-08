@@ -13,6 +13,11 @@ class FakeParser extends Pool.ConnectionInterface {
       this.emit('received', data);
     });
   }
+
+  // eslint-disable-next-line class-methods-use-this
+  initializeConnection() {
+    return new Promise(accept => setTimeout(accept, 100));
+  }
 }
 
 const basePath = path.join(__dirname, 'certs', 'server');
