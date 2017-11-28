@@ -201,6 +201,7 @@ export default class TcpPool {
       } else {
         if (conn.readyState === 'open') {
           accept(true);
+          return;
         }
         winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
         accept(false);
