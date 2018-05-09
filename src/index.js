@@ -30,6 +30,13 @@ class ConnectionInterface extends EventEmitter {
   }
 }
 
+const noOpLogger = {
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+};
+
 export default class TcpPool {
   constructor(interfaceConstructor, options) {
     this.Parser = interfaceConstructor;
@@ -167,7 +174,7 @@ export default class TcpPool {
 
   loggerForContext(context) {
     if (this.options.loggerFromContext) {
-      return this.options.loggerFromContext(context) || winston;
+      return this.options.loggerFromContext(context) || noOpLogger;
     }
     return winston;
   }

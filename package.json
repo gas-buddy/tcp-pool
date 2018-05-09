@@ -1,6 +1,6 @@
 {
   "name": "@gasbuddy/tcp-pool",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A generic pool of TCP connections with a parsing class for handling incoming and outgoing messages",
   "main": "build/index.js",
   "scripts": {
@@ -29,18 +29,18 @@
   ],
   "dependencies": {
     "babel-runtime": "^6.26.0",
-    "generic-pool": "^3.2.0",
-    "winston": "^2.4.0"
+    "generic-pool": "^3.4.2",
+    "winston": "^2.4.2"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
     "babel-core": "^6.24.1",
-    "babel-preset-gasbuddy": "^3.1.0",
+    "babel-preset-gasbuddy": "^3.3.3",
     "babel-register": "^6.24.1",
     "bluebird": "^3.5.0",
-    "cross-env": "^5.1.1",
-    "eslint-config-gasbuddy": "^4",
-    "ssl-root-cas": "^1.2.3",
+    "cross-env": "^5.1.4",
+    "eslint-config-gasbuddy": "^4.1.0",
+    "ssl-root-cas": "^1.2.5",
     "tap": "^10.3.3"
   },
   "author": "GasBuddy",
