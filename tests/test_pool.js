@@ -84,8 +84,10 @@ tap.test('Should make a secure pool', async (t) => {
     host: 'localhost',
     port: tlsServer.address().port,
     tlsOptions: {
+      rejectUnauthorized: false,
       ca: fs.readFileSync(path.join(basePath, 'my-root-ca.crt.pem')),
     },
+    logger: console,
     max: 2,
   });
   t.ok(pool, 'Constructor should work');
@@ -97,7 +99,7 @@ tap.test('Should make a secure pool', async (t) => {
   const third = await pool.acquire();
   t.ok(third, 'Should get a third with max connections 2');
   pool.release(second);
-  third.send(new Buffer('ABCD', 'ascii'));
+  third.send(Buffer.from('ABCD', 'ascii'));
   pool.release(third);
   const promise = new Promise((accept) => {
     third.once('received', (message) => {
@@ -111,7 +113,6 @@ tap.test('Should make a secure pool', async (t) => {
   t.ok(true, 'Pool should be destroyed.');
   t.end();
 });
-
 
 tap.test('Should make an insecure pool', async (t) => {
   const pool = new Pool(FakeParser, {
@@ -130,7 +131,7 @@ tap.test('Should make an insecure pool', async (t) => {
   const third = await pool.acquire();
   t.ok(third, 'Should get a third with max connections 2');
   pool.release(second);
-  third.send(new Buffer('ABCD', 'ascii'));
+  third.send(Buffer.from('ABCD', 'ascii'));
   pool.release(third);
   const promise = new Promise((accept) => {
     third.once('received', (message) => {

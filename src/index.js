@@ -1,6 +1,5 @@
 import tls from 'tls';
 import net from 'net';
-import winston from 'winston';
 import pool from 'generic-pool';
 import { EventEmitter } from 'events';
 
@@ -61,14 +60,18 @@ export default class TcpPool {
 
   async acquire(context) {
     const logger = this.loggerForContext(context);
-    logger.info(`Acquiring connection from ${this.name} pool`);
+    logger.info('Acquiring connection from pool', { name: this.name });
     try {
       const conn = await this.pool.acquire();
-      logger.info(`Returning connection #${conn.id} from ${this.name} pool`);
+      logger.info('Returning connection from pool', {
+        id: conn.id,
+        name: this.name,
+      });
       conn.context = context;
       return conn;
     } catch (error) {
-      logger.error(`Failed to acquire connection from ${this.name} pool`, {
+      logger.error('Failed to acquire connection from pool', {
+        name: this.name,
         error: error.message || error,
       });
       throw error;
@@ -77,7 +80,10 @@ export default class TcpPool {
 
   release(conn) {
     const logger = this.loggerForContext(conn.context);
-    logger.info(`Releasing connection #${conn.id} into ${this.name} pool`);
+    logger.info('Releasing connection into pool', {
+      id: conn.id,
+      name: this.name,
+    });
     this.reset(conn);
     // eslint-disable-next-line no-param-reassign
     delete conn.context;
@@ -86,7 +92,10 @@ export default class TcpPool {
 
   destroy(conn) {
     const logger = this.loggerForContext(conn.context);
-    logger.info(`Destroying connection #${conn.id} of ${this.name} pool`);
+    logger.info('Destroying connection of pool', {
+      id: conn.id,
+      name: this.name,
+    });
     this.reset(conn);
     // eslint-disable-next-line no-param-reassign
     delete conn.context;
@@ -94,17 +103,17 @@ export default class TcpPool {
   }
 
   async destroyAllNow() {
-    winston.debug(`Pool ${this.name} shutting down`);
+    this.loggerForContext().info('Pool shutting down', { name: this.name });
     await this.pool.drain();
-    winston.debug(`Pool ${this.name} drained`);
+    this.loggerForContext().info('Pool drained', { name: this.name });
     await this.pool.clear();
-    winston.debug(`Pool ${this.name} cleared`);
+    this.loggerForContext().info('Pool cleared', { name: this.name });
   }
 
   async connect() {
     this.connectionCount += 1;
     const myId = this.connectionCount;
-    winston.info(`Pool ${this.name} socket #${myId} connecting`);
+    this.loggerForContext().info('Pool socket connecting', { name: this.name, id: myId });
     let attemptCompleted = false;
     let socket;
 
@@ -112,7 +121,7 @@ export default class TcpPool {
       let resolved = false;
       const connectionHandler = async () => {
         if (!attemptCompleted) {
-          winston.info(`Pool ${this.name} socket #${myId} connected`);
+          this.loggerForContext().info('Pool socket connected', { name: this.name, id: myId });
           attemptCompleted = true;
           socket.removeAllListeners();
           const connectionParser = new (this.Parser)(socket, myId);
@@ -146,7 +155,9 @@ export default class TcpPool {
         }
 
         socket.once('error', (error) => {
-          winston.error(`Error on Pool ${this.name} socket #${myId}`, {
+          this.loggerForContext().error('Error on Pool socket', {
+            id: myId,
+            name: this.name,
             message: error.message,
             stack: error.stack,
           });
@@ -161,7 +172,8 @@ export default class TcpPool {
           }
         });
       } catch (error) {
-        winston.error(`Error on Pool ${this.name}`, {
+        this.loggerForContext().error('Error on Pool', {
+          name: this.name,
           message: error.message,
           stack: error.stack,
         });
@@ -176,7 +188,7 @@ export default class TcpPool {
     if (this.options.loggerFromContext) {
       return this.options.loggerFromContext(context) || noOpLogger;
     }
-    return winston;
+    return this.options.logger || noOpLogger;
   }
 
   reset(conn) {
@@ -187,7 +199,9 @@ export default class TcpPool {
 
   onError(conn, error) {
     const logger = this.loggerForContext(conn.context);
-    logger.error(`Error on Pool ${this.name} socket #${conn.id}`, {
+    logger.error('Error on Pool socket', {
+      id: conn.id,
+      name: this.name,
       message: error.message,
       stack: error.stack,
     });
@@ -197,7 +211,10 @@ export default class TcpPool {
 
   onClose(conn) {
     const logger = this.loggerForContext(conn.context);
-    logger.info(`Pool ${this.name} socket #${conn.id} closed`);
+    logger.info('Pool socket closed', {
+      id: conn.id,
+      name: this.name,
+    });
   }
 
   validate(conn) {
@@ -210,7 +227,10 @@ export default class TcpPool {
           accept(true);
           return;
         }
-        winston.error(`Invalid connection in Pool ${this.name} socket #${conn.id}`);
+        this.loggerForContext(conn.context).error('Invalid connection in Pool socket', {
+          id: conn.id,
+          name: this.name,
+        });
         accept(false);
       }
     });
@@ -219,7 +239,10 @@ export default class TcpPool {
   disconnect(conn) {
     return new Promise((accept, reject) => {
       try {
-        winston.debug(`Pool ${this.name} socket #${conn.id} closing`);
+        this.loggerForContext().debug('Pool socket closing', {
+          name: this.name,
+          id: conn.id,
+        });
         conn.destroy();
         accept();
       } catch (error) {
